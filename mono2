@@ -1,0 +1,438 @@
+import datetime
+import os
+import sys
+import warnings
+
+import matplotlib.pyplot as plt
+import numpy as np
+import openpyxl
+import pandas as pd
+import seaborn as sns
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar ####### 카메라 줌 아웃 관련
+from PyQt5 import QtCore, QtGui, QtWidgets, uic
+from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import QMainWindow,QStatusBar,QApplication,QTextEdit, QRadioButton
+from scipy import interpolate
+# from scipy.interpolate import interp1d
+
+######################################################################################
+
+warnings.filterwarnings(action='ignore')
+
+
+#UI파일 연결
+#단, UI파일은 Python 코드 파일과 같은 디렉토리에 위치
+#자신이 가지고 있는 UI의 이름으로 수정
+form_class = uic.loadUiType("monocell_mentoring_ver_1_4_6.ui")[0]
+
+######################################################################################
+#상태창 띄우는데 사용되는 Class 선언
+class StatusBarWriter:
+    def __init__(self, statusBar):
+        self.statusBar = statusBar
+
+    def write(self, text):
+        self.statusBar.showMessage(text)
+        
+#화면을 띄우는데 사용되는 Class 선언
+class WindowClass(QMainWindow, form_class) :
+    def __init__(self) :
+        super().__init__()
+        self.setupUi(self)
+        
+        #버튼에 기능을 연결하는 코드
+        self.pushButton_retention1.clicked.connect(self.savefolder_CP)
+        self.pushButton_retention2.clicked.connect(self.folderload_CP_and_CP_analy)
+        
+        self.pushButton_dQdV1.clicked.connect(self.savefolder_CP2)
+        self.pushButton_dQdV2.clicked.connect(self.folderload_CP2_and_CP2_analy)
+
+        # 라디오 버튼 버튼 추가
+        self.radioButton.clicked.connect(self.optionSelected)
+        self.radioButton_2.clicked.connect(self.option1Selected)
+        self.radioButton_3.clicked.connect(self.option2Selected)
+        self.radioButton_4.clicked.connect(self.option3Selected)
+
+        # # self.toolbar = NavigationToolbar(self.canvas, self)
+
+        self.setWindowTitle("MonoCell_QV_dQdV_dVdQ")
+
+        # 그래프를 표시할 QTabWidget 위젯 생성
+
+        self.tabWidget = QTabWidget(self)
+        self.verticalLayout.addWidget(self.tabWidget)
+
+        ########## 3.창 자동 조절 응용 코드 수정해야함
+
+        self.tabWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        ##### 4.상태표시줄 self.statusBar().showMessage
+
+        # 상태창 생성
+        self.statusBar = QStatusBar()
+        self.setStatusBar(self.statusBar)
+
+        # 초기 상태 메시지 설정
+        self.statusBar.showMessage("Ready")
+
+        # 상태창 보이기
+        self.statusBar.setVisible(True)
+
+    def optionSelected(self):
+        global pptn
+        pptn = [2,4]
+        self.statusBar.showMessage("HPPC 패턴 사용")
+    def option1Selected(self):
+        global pptn
+        pptn = [7,9]
+        self.statusBar.showMessage("RPT 패턴 사용")
+    def option2Selected(self):
+        global pptn
+        pptn = [11, 13]
+        self.statusBar.showMessage("Cycle 패턴 사용")
+    def option3Selected(self):
+        global pptn
+        pptn = [11, 13]
+        self.statusBar.showMessage("Cycle 퇴화 패턴 사용")
+
+
+        #####################
+        # 샘플당 셀 갯수 입력
+        HPPC_cellnum = 9
+        RPT_cellnum = 3
+        ptn_num = [16, 26, 36, 46, 56, 66]
+
+    def my_exception_hook(exctype, value, traceback):
+        # Print the error and traceback
+        print(exctype, value, traceback)
+        # Call the normal Exception hook after
+        sys._excepthook(exctype, value, traceback)
+        sys._excepthook = sys.excepthook
+        sys.excepthook = my_exception_hook
+        # sys.exit(1)
+        
+    #btn이 눌리면 작동할 함수
+    def savefolder_CP(self) :
+        global path_dir_save
+        path_dir_save = QFileDialog.getExistingDirectory(self, "Select Directory")
+        self.statusBar.showMessage("결과 저장 폴더 :" + path_dir_save)
+        print("결과 저장 폴더 :" + path_dir_save)
+        print("btn_1 Clicked")
+
+    def folderload_CP_and_CP_analy(self) :
+        global path_dir
+        path_dir = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print(path_dir)
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        print("데이터 선택 폴더 :")
+        print(dirs1)
+        self.statusBar.showMessage("해당 폴더 분석 합니다. :" + dirs1)
+
+        
+        # for root1, dirs1, files1 in os.walk(path_dir):
+        #     break
+
+        dirs1 = sorted(dirs1)
+
+        dirnum = -1
+        wb = openpyxl.load_workbook('./cycle_parameter.xlsx')
+
+        for val_dir1 in dirs1:
+            dirnum = dirnum + 1
+            cell_sheet = wb.get_sheet_by_name('Cell' + str(dirnum + 1))
+            print('path_dir', path_dir)
+            print('val_dir1', val_dir1)
+            file_list = os.listdir(path_dir + '/' + val_dir1 + '/Restore/')
+
+            raw = pd.DataFrame()
+            ptn = []
+            for filename in file_list:
+                if filename.find('00') > 0:
+                    dft = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+                    raw = pd.concat([raw, dft], axis=0, ignore_index=True)
+                elif filename.find('SaveEndData') > 0:
+                    ptn = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+
+            # 용량 구하기
+            disch = ptn[ptn[2] == 2]
+            disch_13 = disch[disch[7] == 13]
+            disch_27 = disch[disch[7] == 27]
+            disch = pd.concat([disch_13,disch_27],axis=0, ignore_index=True)
+
+            ch = ptn[ptn[2] == 1]
+            ch_11 = ch[ch[7] == 11]
+            ch_25 = ch[ch[7] == 25]
+            ch = pd.concat([ch_11, ch_25], axis=0, ignore_index=True)
+
+            res = ptn[ptn[2] == 3]
+            res_12 = res[res[7] == 12]
+            res_26 = res[res[7] == 26]
+            res_ch = pd.concat([res_12, res_26],axis=0, ignore_index=True)
+
+            res_14 = res[res[7] == 14]
+            res_28 = res[res[7] == 28]
+            res_dis = pd.concat([res_14, res_28],axis=0, ignore_index=True)
+
+            ccv = raw[raw[2] == 3]
+            ccv = ccv[ccv[13] == 6000]
+            ccv_12 = ccv[ccv[7] == 12]
+            ccv_26 = ccv[ccv[7] == 26]
+            ccv_ch = pd.concat([ccv_12, ccv_26], axis=0, ignore_index=True)
+            ccv_14 = ccv[ccv[7] == 14]
+            ccv_28 = ccv[ccv[7] == 28]
+            ccv_dis = pd.concat([ccv_14, ccv_28], axis=0, ignore_index=True)
+
+            self.statusBar.showMessage("최종 cycle"+ disch.shape[0])
+            print("최종 cycle", disch.shape[0])
+
+            for f_i in range(disch.shape[0]):
+                cell_sheet.cell(row=4, column=2).value = val_dir1
+                cell_sheet.cell(row=10 + f_i, column=2).value = ch.iloc[f_i , 10] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=3).value = ch.iloc[f_i , 33] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=4).value = disch.iloc[f_i , 10] / 1000000
+
+                #cell_sheet.cell(row=10 + f_i, column=8).value = ch.iloc[f_i + 1, 8] / 1000000
+                #cell_sheet.cell(row=10 + f_i, column=12).value = disch.iloc[f_i + 1, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=5).value = res_ch.iloc[f_i, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=9).value = res_dis.iloc[f_i, 8] / 1000000
+                #x = f_i * 2
+
+                cell_sheet.cell(row=10 + f_i, column=6).value = ccv_ch.iloc[f_i, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=7).value = ccv_ch.iloc[f_i , 9] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=10).value = ccv_dis.iloc[f_i, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=11).value = ccv_dis.iloc[f_i , 9] / 1000000
+                
+        now = datetime.datetime.now()
+        # wb.save(path_dir_save + '/cycle_result' + str(now.minute) + str(now.second) + '.xlsx')
+        
+        try:
+            # 예외가 발생할 수 있는 코드
+            wb.save(path_dir_save + '/cycle_result_' + str(now.strftime('%y%m%d_%H%M%S')) + '.xlsx')
+            
+            print("분석 종료. 결과파일 저장완료")
+            self.statusBar.showMessage("분석 종료. 결과파일 저장완료")
+
+            # print("결과파일:" + path_dir_save + '/cycle_result' + str(now.minute) + str(now.second) + '.xlsx')
+            print("결과파일:" + path_dir_save + '/cycle_result_' + str(now.strftime('%y%m%d_%H%M%S')) + '.xlsx')
+
+        except NameError:
+            print('파일이 저장되지 않았습니다. 저장할 폴더를 선택하세요.')
+        print("btn_2 Clicked")
+        
+    def savefolder_CP2(self):
+        global path_dir_save2
+        path_dir_save2 = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print("결과 저장 폴더 :" + path_dir_save2)
+        self.statusBar.showMessage("결과 저장 폴더 :" + path_dir_save2)
+
+        print("btn_3 Clicked")
+    
+    def folderload_CP2_and_CP2_analy(self) :       
+        global path_dir2
+        path_dir2 = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print(path_dir2)
+        for root2, dirs2, files2 in os.walk(path_dir2):
+            break
+        print("데이터 선택 폴더 :")
+        print('path_dir2', path_dir2)
+        self.statusBar.showMessage("분석중...")
+
+        dirs2 = sorted(dirs2)
+        # dirnum = -1
+
+        number = self.cycle_no.text() # cycle_no로 변경
+        cycle_no = [int(x) for x in number.split(',')] if number else [1, 2]
+        charge_p = int(self.charge_p.text()) if self.charge_p.text() else 100
+        discharge_p = int(self.discharge_p.text()) if self.discharge_p.text() else 100
+        
+        print("User input:", cycle_no)
+        #self.statusBar.showMessage("User input:"+ cycle_no)
+        #da = int(sys.stdin.readline().strip())  # 원하는 cycle 입력
+        print(cycle_no, "Cycle 분석 중")
+        qv_df, dvdq_df, dqdv_df = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+        for val_dir1 in dirs2:
+            print(val_dir1)
+            # dirnum = dirnum + 2
+            # sam_num, k = divmod(dirnum, RPT_cellnum)
+            file_list = os.listdir(path_dir2 + '/' + val_dir1 + '/Restore/')
+            file_list = sorted(file_list)
+            # print('file_list', file_list)
+            raw = pd.DataFrame()
+            ptn = []
+            for filename in file_list:
+                if filename.find('00') > 0:
+                    dft = pd.read_csv(path_dir2 + '/' + val_dir1 + '/Restore/' + filename, header=None)
+                    raw = pd.concat([raw, dft], axis=0, ignore_index=True)
+                elif filename.find('SaveEndData') > 0:
+                    ptn = pd.read_csv(path_dir2 + '/' + val_dir1 + '/Restore/' + filename, header=None)
+
+            # raw 파일 불러오기
+            raw[8] = raw[8] / 1000000 # voltage
+            raw[10] = raw[10] / 1000000 # capacity
+            cycle_total = raw[(raw[7] == pptn[0]) | (raw[7] == pptn[1])] # 11은 충전, 13은 방전
+            
+            cycle12 = cycle_total[cycle_total[19].isin(cycle_no)] # 충전, 방전 원하는 사이클 필터
+
+            cycle12_df, dqdv_cycle12, dvdq_cycle12 = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+            cycle12_df['Condition'] = cycle12[7].copy()
+            cycle12_df['Cycle'] = cycle12[19].copy()
+            cycle12_df['Capacity[mAh]'] = cycle12[10].copy()
+            cycle12_df['Voltage[V]'] = cycle12[8].copy()
+            cycle12_df['File_name'] = val_dir1
+            cycle12_df = cycle12_df[['File_name', 'Condition', 'Cycle', 'Capacity[mAh]', 'Voltage[V]']]
+            print(cycle12_df.head())
+            
+            for name_, df_cd in cycle12_df.groupby(['Condition', 'Cycle']): #7은 충전, 방전 구분 # 19는 cycle                
+                if name_[0] == pptn[0]:
+                    df_cd = df_cd.drop_duplicates(['Voltage[V]']) #중복행 제거
+                    df_cd = df_cd.reset_index()
+                    data_point = charge_p
+                elif name_[0] == pptn[1]:
+                    data_point = discharge_p           
+                
+                # dqdv 계산
+                cd_linear = interpolate.interp1d(x=df_cd['Voltage[V]'], y=df_cd['Capacity[mAh]'], kind='linear', fill_value='extrapolate')
+                scope1 = df_cd['Voltage[V]'].min()
+                scope2 = df_cd['Voltage[V]'].max()
+                    
+                xcd_new = np.linspace(scope1, scope2, data_point)
+                ycd_new = cd_linear(xcd_new)
+            
+                dfcd_new = pd.DataFrame({'Voltage[V]': xcd_new, 'Capacity[mAh]': ycd_new, 'Condition': name_[0], 'Cycle': name_[1]})
+                
+                x_1 = np.diff(dfcd_new['Capacity[mAh]'][:-1])
+                x_2 = np.diff(dfcd_new['Voltage[V]'][:-1])
+                x_3 = np.diff(dfcd_new['Capacity[mAh]'][1:])
+                x_4 = np.diff(dfcd_new['Voltage[V]'][1:])
+                    
+                dfcd_new['dQ/dV[mAh/V]'] = 0
+                dfcd_new['dQ/dV[mAh/V]'][0] = (dfcd_new['Capacity[mAh]'][1] - dfcd_new['Capacity[mAh]'][0]) / (dfcd_new['Voltage[V]'][1] - dfcd_new['Voltage[V]'][0])
+                dfcd_new['dQ/dV[mAh/V]'][1:-1] = ((x_1/x_2)+(x_3/x_4))/2 
+
+                dfcd_new_dq = dfcd_new['Capacity[mAh]'][data_point-1]-dfcd_new['Capacity[mAh]'][data_point-2]
+                dfcd_new_dv = dfcd_new['Voltage[V]'][data_point-1]-dfcd_new['Voltage[V]'][data_point-2]
+                    
+                dfcd_new['dQ/dV[mAh/V]'][data_point-1] = dfcd_new_dq/dfcd_new_dv
+                
+                print(dfcd_new.shape)
+
+                dqdv_cycle12 = pd.concat([dqdv_cycle12, dfcd_new], ignore_index=True)
+                dqdv_cycle12['File_name'] = val_dir1
+                print(dqdv_cycle12.shape)
+                dqdv_cycle12 = dqdv_cycle12[['File_name', 'Condition', 'Cycle', 'Capacity[mAh]', 'dQ/dV[mAh/V]', 'Voltage[V]']]
+
+                
+                cd_linear2 = interpolate.interp1d(x=df_cd['Capacity[mAh]'], y=df_cd['Voltage[V]'], kind='linear', fill_value='extrapolate')
+                scope3 = df_cd['Capacity[mAh]'].min()
+                scope4 = df_cd['Capacity[mAh]'].max()
+                    
+                xcd_new2 = np.linspace(scope3, scope4, data_point)
+                ycd_new2 = cd_linear2(xcd_new2)
+            
+                dfcd_new2 = pd.DataFrame({'Capacity[mAh]': xcd_new2, 'Voltage[V]': ycd_new2, 'Condition': name_[0], 'Cycle': name_[1]})
+                
+                x_1_ = np.diff(dfcd_new2['Voltage[V]'][:-1])
+                x_2_ = np.diff(dfcd_new2['Capacity[mAh]'][:-1]) 
+                x_3_ = np.diff(dfcd_new2['Voltage[V]'][1:])
+                x_4_ = np.diff(dfcd_new2['Capacity[mAh]'][1:])
+                    
+                dfcd_new2['dV/dQ[V/mAh]'] = 0
+                dfcd_new2['dV/dQ[V/mAh]'][0] = (dfcd_new2['Voltage[V]'][1] - dfcd_new2['Voltage[V]'][0]) / (dfcd_new2['Capacity[mAh]'][1] - dfcd_new2['Capacity[mAh]'][0])
+                dfcd_new2['dV/dQ[V/mAh]'][1:-1] = ((x_1_/x_2_)+(x_3_/x_4_))/2 
+
+                dfcd_new_dv2 = dfcd_new2['Voltage[V]'][data_point-1]-dfcd_new2['Voltage[V]'][data_point-2]
+                dfcd_new_dq2 = dfcd_new2['Capacity[mAh]'][data_point-1]-dfcd_new2['Capacity[mAh]'][data_point-2]
+                
+                    
+                dfcd_new2['dV/dQ[V/mAh]'][data_point-1] = dfcd_new_dv2/dfcd_new_dq2
+
+                dvdq_cycle12 = pd.concat([dvdq_cycle12, dfcd_new2], ignore_index=True)
+                dvdq_cycle12['File_name'] = val_dir1
+                
+                dvdq_cycle12 = dvdq_cycle12[['File_name', 'Condition', 'Cycle', 'dV/dQ[V/mAh]', 'Capacity[mAh]', 'Voltage[V]']]
+
+
+                # 엑셀 파일 경로 및 파일명 설정
+                try:
+                    # 예외가 발생할 수 있는 코드
+                    writer = pd.ExcelWriter(path_dir_save2 +f'/{val_dir1}_QV_dqdv_dvdq.xlsx', engine='xlsxwriter')
+                    cycle12_df.to_excel(writer, sheet_name="QV", index=False)
+                    dqdv_cycle12.to_excel(writer, sheet_name="dqdv", index=False)
+                    dvdq_cycle12.to_excel(writer, sheet_name="dvdq", index=False)
+                    writer.close()
+                    print("분석 종료. 결과파일 저장완료")
+                except NameError:
+                    print('파일이 저장되지 않았습니다. 저장할 폴더를 선택하세요.')
+                    
+            qv_df = pd.concat([qv_df, cycle12_df], ignore_index=True)    
+            dqdv_df = pd.concat([dqdv_df, dqdv_cycle12], ignore_index=True)
+            dvdq_df = pd.concat([dvdq_df, dvdq_cycle12], ignore_index=True)  
+
+            # 각 탭에 그래프를 추가
+
+            tab = QWidget()
+            layout = QVBoxLayout(tab)
+            self.fig = plt.Figure(figsize=(12, 4)) # 10, 3
+            self.canvas = FigureCanvas(self.fig)
+            layout.addWidget(self.canvas)
+
+            self.plot_graph(tab, val_dir1, qv_df, dqdv_df, dvdq_df)
+
+            # NavigationToolbar 생성
+            toolbar = NavigationToolbar(self.canvas, tab)
+            layout.addWidget(toolbar)
+
+            self.tabWidget.addTab(tab, val_dir1)
+
+            print("btn_4 Clicked")
+
+    def plot_graph(self, tab, val_dir1, qv_df, dqdv_df, dvdq_df): # dirs2
+
+        self.fig.clear()
+        # self.canvas.draw()
+        self.canvas = tab.layout().itemAt(0).widget()
+    
+        cycle12_df = qv_df[qv_df['File_name'] == val_dir1]
+        dqdv_cycle12 = dqdv_df[dqdv_df['File_name'] == val_dir1]
+        dvdq_cycle12 = dvdq_df[dvdq_df['File_name'] == val_dir1]
+        
+        for i in range(1, 4):
+            ax = self.fig.add_subplot(1, 3, i)
+            if i == 1:
+                sns.lineplot(x = 'Capacity[mAh]', y = 'Voltage[V]', data = cycle12_df[cycle12_df['Condition'] == pptn[0]], ci = None, hue = 'Cycle', palette = sns.color_palette("Paired",10), ax = ax)
+                sns.lineplot(x = 'Capacity[mAh]', y = 'Voltage[V]', data = cycle12_df[cycle12_df['Condition'] == pptn[1]], ci = None, hue = 'Cycle', palette = sns.color_palette("Paired",10), ax = ax)
+                ax.set_title(val_dir1 +'_QV', wrap = True)
+            if i == 2:
+                sns.lineplot(x = 'Voltage[V]', y = 'dQ/dV[mAh/V]',  data = dqdv_cycle12[dqdv_cycle12['Condition'] == pptn[0]], ci = None, hue = 'Cycle', palette = sns.color_palette("Paired",10), ax = ax)
+                sns.lineplot(x = 'Voltage[V]', y = 'dQ/dV[mAh/V]',  data = dqdv_cycle12[dqdv_cycle12['Condition'] == pptn[1]], ci = None, hue = 'Cycle', palette = sns.color_palette("Paired",10), ax = ax)
+                ax.set_title(val_dir1 +'_dQdV', wrap = True)
+            if i == 3:
+                sns.lineplot(x = 'Capacity[mAh]', y = 'dV/dQ[V/mAh]',  data = dvdq_cycle12[dvdq_cycle12['Condition'] == pptn[0]], ci = None, hue = 'Cycle', palette = sns.color_palette("Paired",10), ax = ax)
+                sns.lineplot(x = 'Capacity[mAh]', y = 'dV/dQ[V/mAh]',  data = dvdq_cycle12[dvdq_cycle12['Condition'] == pptn[1]], ci = None, hue = 'Cycle', palette = sns.color_palette("Paired",10), ax = ax)
+                ax.set_title(val_dir1 +'_dVdQ', wrap = True)
+                ax.set_ylim([np.max(dvdq_cycle12[dvdq_cycle12['Condition'] == pptn[1]]['dV/dQ[V/mAh]']) -0.05, np.min(dvdq_cycle12[dvdq_cycle12['Condition'] == pptn[0]]['dV/dQ[V/mAh]']) +0.05])
+    
+              
+            handles, labels = ax.get_legend_handles_labels()
+            labels = labels[:int(len(labels)/2)]
+            ax.legend(handles, labels, loc = (1, 0), fontsize=10) 
+
+            self.fig.tight_layout()
+            self.canvas.figure = self.fig
+            self.canvas.draw() # 그래프 표시
+        #     # self.fig.savefig(path_dir_save2 + '/'+ self.dqdv_cycle12['File_name'].unique(), format='png')
+
+        self.statusBar.showMessage("분석완료!")
+
+
+if __name__ == "__main__" :
+    #QApplication : 프로그램을 실행시켜주는 클래스
+    app = QApplication(sys.argv) 
+    #WindowClass의 인스턴스 생성
+    myWindow = WindowClass()
+    #프로그램 화면을 보여주는 코드
+    myWindow.show()
+    #프로그램을 이벤트루프로 진입시키는(프로그램을 작동시키는) 코드
+    app.exec_()
