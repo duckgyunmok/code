@@ -1,0 +1,557 @@
+import os.path
+import sys
+import os
+from PyQt5.QtCore import *
+from PyQt5.QtWidgets import *
+import os.path
+import openpyxl
+import pandas as pd
+import datetime
+import warnings
+
+warnings.filterwarnings(action='ignore')
+
+class Window(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.InitWindow()
+    def InitWindow(self):
+        global HPPC_cellnum,RPT_cellnum,ptn_num,CYC_cellnum
+        #####################
+        # 샘플당 셀 갯수 입력
+        ptn_num = [12, 22, 32, 42, 52, 62]
+        RPT_cellnum = 5
+        CYC_cellnum = 5
+
+        #####################ptn num 6 rest 있음
+
+        self.setWindowTitle("모노셀 분석")
+        self.resize(340, 380)  # 창 크기
+        # button
+
+        self.label1 = QLabel(self)
+        self.label1.setGeometry(QRect(5, 15, 330, 50))
+        self.label1.setStyleSheet("color: blue;"
+                                  "border-style: solid;"
+                                  "border-width: 1px;"
+                                  "border-color: #1E90FF;"
+                                  "border-radius: 3px")
+        self.label2 = QLabel(self)
+        self.label2.setGeometry(QRect(5, 85, 330, 50))
+        self.label2.setStyleSheet("color: blue;"
+                                  "border-style: solid;"
+                                  "border-width: 1px;"
+                                  "border-color: #1E90FF;"
+                                  "border-radius: 3px")
+        self.label3 = QLabel(self)
+        self.label3.setGeometry(QRect(5, 155, 330, 50))
+        self.label3.setStyleSheet("color: blue;"
+                                  "border-style: solid;"
+                                  "border-width: 1px;"
+                                  "border-color: #1E90FF;"
+                                  "border-radius: 3px")
+        self.label4 = QLabel(self)
+        self.label4.setGeometry(QRect(5, 225, 330, 50))
+        self.label4.setStyleSheet("color: blue;"
+                                  "border-style: solid;"
+                                  "border-width: 1px;"
+                                  "border-color: #1E90FF;"
+                                  "border-radius: 3px")
+        self.label5 = QLabel(self)
+        self.label5.setGeometry(QRect(5, 295, 330, 50))
+        self.label5.setStyleSheet("color: blue;"
+                                  "border-style: solid;"
+                                  "border-width: 1px;"
+                                  "border-color: #1E90FF;"
+                                  "border-radius: 3px")
+
+        # button_HPPC
+        self.btn_h1 = QPushButton(self)
+        self.btn_h1.setGeometry(QRect(10, 20, 100, 40))
+        self.btn_h1.setText("HPPC result")
+
+        self.btn_h2 = QPushButton(self)
+        self.btn_h2.setGeometry(QRect(120, 20, 100, 40))
+        self.btn_h2.setText("HPPC data")
+        self.btn_h2.setEnabled(False)
+
+        self.btn_h3 = QPushButton(self)
+        self.btn_h3.setGeometry(QRect(230, 20, 100, 40))
+        self.btn_h3.setText("분석 시작")
+        self.btn_h3.setEnabled(False)
+
+        # button_cycle
+        self.btn1 = QPushButton(self)
+        self.btn1.setGeometry(QRect(10, 90, 100, 40))
+        self.btn1.setText("cyc result")
+
+        self.btn2 = QPushButton(self)
+        self.btn2.setGeometry(QRect(120, 90, 100, 40))
+        self.btn2.setText("cyc data")
+        self.btn2.setEnabled(False)
+
+        self.btn3 = QPushButton(self)
+        self.btn3.setGeometry(QRect(230, 90, 100, 40))
+        self.btn3.setText("분석 시작")
+        self.btn3.setEnabled(False)
+
+        # button_RPT
+        self.btn_r1 = QPushButton(self)
+        self.btn_r1.setGeometry(QRect(10, 160, 100, 40))
+        self.btn_r1.setText("RPT result")
+
+        self.btn_r2 = QPushButton(self)
+        self.btn_r2.setGeometry(QRect(120, 160, 100, 40))
+        self.btn_r2.setText("RPT data")
+        self.btn_r2.setEnabled(False)
+
+        self.btn_r3 = QPushButton(self)
+        self.btn_r3.setGeometry(QRect(230, 160, 100, 40))
+        self.btn_r3.setText("분석 시작")
+        self.btn_r3.setEnabled(False)
+
+        # button_수명퇴화
+        self.btn_c1 = QPushButton(self)
+        self.btn_c1.setGeometry(QRect(10, 230, 100, 40))
+        self.btn_c1.setText("수명퇴화 result")
+
+        self.btn_c2 = QPushButton(self)
+        self.btn_c2.setGeometry(QRect(120, 230, 100, 40))
+        self.btn_c2.setText("data 100cyc")
+        self.btn_c2.setEnabled(False)
+
+        self.btn_c3 = QPushButton(self)
+        self.btn_c3.setGeometry(QRect(230, 230, 100, 40))
+        self.btn_c3.setText("분석 시작")
+        self.btn_c3.setEnabled(False)
+
+        # button_수명퇴화2
+        self.btn_d1 = QPushButton(self)
+        self.btn_d1.setGeometry(QRect(10, 300, 100, 40))
+        self.btn_d1.setText("수명퇴화 result")
+
+        self.btn_d2 = QPushButton(self)
+        self.btn_d2.setGeometry(QRect(120, 300, 100, 40))
+        self.btn_d2.setText("data 300cyc")
+        self.btn_d2.setEnabled(False)
+
+        self.btn_d3 = QPushButton(self)
+        self.btn_d3.setGeometry(QRect(230, 300, 100, 40))
+        self.btn_d3.setText("분석 시작")
+        self.btn_d3.setEnabled(False)
+
+        # function_cycle
+        self.btn1.clicked.connect(self.savefolder_cycle)
+        self.btn2.clicked.connect(self.folderload_cycle)
+        self.btn3.clicked.connect(self.cycle_analy)
+
+        # function_HPPC
+        self.btn_h1.clicked.connect(self.savefolder_HPPC)
+        self.btn_h2.clicked.connect(self.folderload_HPPC)
+        self.btn_h3.clicked.connect(self.HPPC_analy)
+
+        # function_PRT
+        self.btn_r1.clicked.connect(self.savefolder_RPT)
+        self.btn_r2.clicked.connect(self.folderload_RPT)
+        self.btn_r3.clicked.connect(self.RPT_analy)
+
+        # 퇴화분석 100cyc
+        self.btn_c1.clicked.connect(self.savefolder_CP)
+        self.btn_c2.clicked.connect(self.folderload_CP)
+        self.btn_c3.clicked.connect(self.CP_analy)
+
+        # 퇴화분석 300cyc
+        self.btn_d1.clicked.connect(self.savefolder_CP2)
+        self.btn_d2.clicked.connect(self.folderload_CP2)
+        self.btn_d3.clicked.connect(self.CP2_analy)
+
+        self.show()
+
+    def savefolder_HPPC(self):
+        global path_dir_save
+        path_dir_save = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print("결과 저장 폴더 :" + path_dir_save)
+        self.btn_h2.setEnabled(True)
+
+    def folderload_HPPC(self):
+        global path_dir
+        path_dir = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print(path_dir)
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        print("데이터 선택 폴더 :")
+        print(dirs1)
+        self.btn_h3.setEnabled(True)
+
+    def HPPC_analy(self):
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        dirs1 = sorted(dirs1)
+        dirnum = -1
+        wb = openpyxl.load_workbook('./monocell_HPPC.xlsx')
+        sheet_HPPC = wb.get_sheet_by_name('HPPC_Raw')
+
+        print("HPPC lot 당 cell 갯수를 입력하세요")
+        HPPC_cellnum = int(sys.stdin.readline().strip())
+
+        for val_dir1 in dirs1:
+            dirnum = dirnum + 1
+            sam_num, k = divmod(dirnum, HPPC_cellnum)
+            file_list = os.listdir(path_dir + '/' + val_dir1 + '/Restore/')
+            file_list = sorted(file_list)
+            raw = pd.DataFrame()
+            ptn = []
+            for filename in file_list:
+                if filename.find('00') > 0:
+                    dft = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+                    raw = pd.concat([raw, dft], axis=0, ignore_index=True)
+                elif filename.find('SaveEndData') > 0:
+                    ptn = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+
+            # 용량 구하기
+
+            disch = ptn[ptn[7] == 4]
+            sheet_HPPC.cell(row=3 + dirnum - sam_num * HPPC_cellnum, column=2 + sam_num).value = disch.iloc[1, 10] / 1000000
+
+
+            # 저항 구하기
+
+            k = 0
+            for i in ptn_num:
+
+                dv1 = raw.iloc[ptn.iloc[i - 1, 0], 8]
+                dv2 = raw.iloc[ptn.iloc[i, 0], 8]
+                dic = raw.iloc[ptn.iloc[i, 0] -1, 9]
+                print(dv1,dv2,dic)
+                disch_res = (dv2 - dv1) / dic
+                sheet_HPPC.cell(row=34 + k, column=dirnum + 2 + sam_num * (15 - HPPC_cellnum)).value = disch_res * 1000
+
+                cv1 = raw.iloc[ptn.iloc[i + 3, 0], 8]
+                cv2 = raw.iloc[ptn.iloc[i + 4, 0], 8]
+                cic = raw.iloc[ptn.iloc[i + 3, 0] + 1, 9]
+                ch_res = (cv2 - cv1) / cic
+                sheet_HPPC.cell(row=24 + k, column=dirnum + 2 + sam_num * (15 - HPPC_cellnum)).value = ch_res * 1000
+                if i == ptn_num[2]:
+                    sheet_HPPC.cell(row=3 + dirnum - sam_num * HPPC_cellnum,
+                                    column=20 + sam_num).value = disch_res * 1000
+                    for ci in range(101):
+                        sheet_HPPC.cell(row=54 + ci, column=dirnum + 2 + sam_num * (15 - HPPC_cellnum)).value = \
+                        raw.iloc[ptn.iloc[i-1, 0] + ci, 8]
+
+                if i == ptn_num[5]:
+                    sheet_HPPC.cell(row=3 + dirnum - sam_num * HPPC_cellnum,
+                                    column=38 + sam_num).value = disch_res * 1000
+                    for di in range(101):
+                        sheet_HPPC.cell(row=160 + di, column=dirnum + 2 + sam_num * (15 - HPPC_cellnum)).value = \
+                        raw.iloc[ptn.iloc[i-1, 0] + di, 8]
+                # OCV 구하기
+                ocv1 = raw.iloc[ptn.iloc[i, 0], 8]
+                ocv2 = raw.iloc[ptn.iloc[i + 1, 0], 8]
+                d_ocv = ocv2
+                sheet_HPPC.cell(row=44 + k, column=dirnum + 2 + sam_num * (15 - HPPC_cellnum)).value = d_ocv / 1000000
+                print(k)
+                k += 1
+        now = datetime.datetime.now()
+        wb.save(path_dir_save + '/HPPC_result' + str(now.minute) + str(now.second) + '.xlsx')
+        print("분석 종료. 결과파일 저장완료")
+        print("결과파일:" + path_dir_save + '/HPPC_result' + str(now.minute) + str(now.second) + '.xlsx')
+
+    def savefolder_cycle(self):
+        global path_dir_save
+        path_dir_save = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print("결과 저장 폴더 :" + path_dir_save)
+        self.btn2.setEnabled(True)
+
+    def folderload_cycle(self):
+        global path_dir
+        path_dir = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print(path_dir)
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        print("데이터 선택 폴더 :")
+        print(dirs1)
+        self.btn3.setEnabled(True)
+
+    def cycle_analy(self):
+
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        dirs1 = sorted(dirs1)
+        dirnum = -1
+        sam_num, k = divmod(dirnum, CYC_cellnum)
+        wb = openpyxl.load_workbook('./monocell_고온수명.xlsx')
+        sheet_cycle1 = wb.get_sheet_by_name('수명용량')
+        sheet_cycle2 = wb.get_sheet_by_name('수명저항')
+        for val_dir1 in dirs1:
+            dirnum = dirnum + 1
+            sam_num, k = divmod(dirnum, CYC_cellnum)
+            file_list = os.listdir(path_dir + '/' + val_dir1 + '/Restore/')
+            raw = pd.DataFrame()
+            ptn = []
+            for filename in file_list:
+                if filename.find('00') > 0:
+                    dft = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+                    raw = pd.concat([raw, dft], axis=0, ignore_index=True)
+                elif filename.find('SaveEndData') > 0:
+                    ptn = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+
+            # 용량 구하기
+            disch = ptn[ptn[2] == 2]
+            disch = disch[disch[7] == 13]
+            for f_i in range(disch.shape[0]):
+                sheet_cycle1.cell(row=32 + f_i, column=2+ dirnum + sam_num * (5 - CYC_cellnum)).value = disch.iloc[f_i, 10] / 1000000
+            # 저항 구하기
+
+            step = ptn[ptn[2] == 3]
+            step = step[step[7] == 12]
+
+            for i in range(step.shape[0]):
+                v1 = raw.iloc[step.iloc[i, 0], 8]
+                v2 = raw.iloc[step.iloc[i, 0] + 1, 8]
+                ic = raw.iloc[step.iloc[i, 0] + 1, 9]
+                disch_res = (v2 - v1) / ic
+                    # if i > 3:
+                sheet_cycle2.cell(row=32 + i, column=2+ dirnum + sam_num * (5 - CYC_cellnum)).value = disch_res * 1000
+        now = datetime.datetime.now()
+        wb.save(path_dir_save + '/cycle_result' + str(now.minute) + str(now.second) + '.xlsx')
+        print("분석 종료. 결과파일 저장완료")
+        print("결과파일:" + path_dir_save + '/cycle_result' + str(now.minute) + str(now.second) + '.xlsx')
+
+    def savefolder_RPT(self):
+        global path_dir_save
+        path_dir_save = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print("결과 저장 폴더 :" + path_dir_save)
+        self.btn_r2.setEnabled(True)
+
+    def folderload_RPT(self):
+        global path_dir
+        path_dir = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print(path_dir)
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        print("데이터 선택 폴더 :")
+        print(dirs1)
+        self.btn_r3.setEnabled(True)
+
+    def RPT_analy(self):
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        dirs1 = sorted(dirs1)
+        dirnum = -1
+        wb = openpyxl.load_workbook('./monocell_RPT.xlsx')
+        sheet_RPT = wb.get_sheet_by_name('고온저장RPT_Raw')
+        print(wb)
+        for val_dir1 in dirs1:
+            dirnum = dirnum + 1
+            sam_num, k = divmod(dirnum, RPT_cellnum)
+            file_list = os.listdir(path_dir + '/' + val_dir1 + '/Restore/')
+            file_list = sorted(file_list)
+            raw = pd.DataFrame()
+            ptn = []
+            for filename in file_list:
+                if filename.find('00') > 0:
+                    dft = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+                    raw = pd.concat([raw, dft], axis=0, ignore_index=True)
+                elif filename.find('SaveEndData') > 0:
+                    ptn = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+            # 용량 구하기
+            sheet_RPT.cell(row=4, column=2 + dirnum + sam_num * (5 - RPT_cellnum)).value = ptn.iloc[9, 35] / 1000000
+
+            # 저항 구하기
+            dv1 = raw.iloc[ptn.iloc[20-1, 0], 8]
+            dv2 = raw.iloc[ptn.iloc[20, 0]-201, 8]
+            dic = raw.iloc[ptn.iloc[20, 0]-201, 9]
+            disch_res = (dv2 - dv1) / dic
+            print(val_dir1, ptn.iloc[20-1, 0],ptn.iloc[20, 0],dv1, dv2, dic, disch_res)
+            sheet_RPT.cell(row=22, column=2 + dirnum + sam_num * (5 - RPT_cellnum)).value = disch_res * 1000
+
+        now = datetime.datetime.now()
+        wb.save(path_dir_save + '/RPT_result' + str(now.minute) + str(now.second) + '.xlsx')
+        print("분석 종료. 결과파일 저장완료")
+        print("결과파일:" + path_dir_save + '/RPT_result' + str(now.minute) + str(now.second) + '.xlsx')
+
+    def savefolder_CP(self):
+        global path_dir_save
+        path_dir_save = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print("결과 저장 폴더 :" + path_dir_save)
+        self.btn_c2.setEnabled(True)
+
+    def folderload_CP(self):
+        global path_dir
+        path_dir = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print(path_dir)
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        print("데이터 선택 폴더 :")
+        print(dirs1)
+        self.btn_c3.setEnabled(True)
+
+    def CP_analy(self):
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        dirs1 = sorted(dirs1)
+
+        dirnum = -1
+        wb = openpyxl.load_workbook('./cycle_parameter.xlsx')
+
+        for val_dir1 in dirs1:
+            dirnum = dirnum + 1
+            cell_sheet = wb.get_sheet_by_name('Cell' + str(dirnum + 1))
+            file_list = os.listdir(path_dir + '/' + val_dir1 + '/Restore/')
+            raw = pd.DataFrame()
+            ptn = []
+            for filename in file_list:
+                if filename.find('00') > 0:
+                    dft = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+                    raw = pd.concat([raw, dft], axis=0, ignore_index=True)
+                elif filename.find('SaveEndData') > 0:
+                    ptn = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+
+            # 용량 구하기
+            disch = ptn[ptn[2] == 2]
+            ch = ptn[ptn[2] == 1]
+            res = ptn[ptn[2] == 3]
+            ccv = raw[raw[2] == 3]
+            ccv = ccv[ccv[13] == 6000]
+            ran_num = divmod(ptn.shape[0], 4)[0] - 2
+
+            for f_i in range(100):
+                cell_sheet.cell(row=4, column=2).value = val_dir1
+                cell_sheet.cell(row=10 + f_i, column=2).value = ch.iloc[f_i + 1, 10] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=3).value = raw.iloc[ch.iloc[f_i + 1, 0] - 2, 33] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=4).value = disch.iloc[f_i + 1, 10] / 1000000
+
+                cell_sheet.cell(row=10 + f_i, column=8).value = ch.iloc[f_i + 1, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=12).value = disch.iloc[f_i + 1, 8] / 1000000
+                x = f_i * 2
+                cell_sheet.cell(row=10 + f_i, column=5).value = res.iloc[x + 3, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=6).value = ccv.iloc[x + 3, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=7).value = ccv.iloc[x + 3, 9] / 1000000
+
+                cell_sheet.cell(row=10 + f_i, column=9).value = res.iloc[x + 4, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=10).value = ccv.iloc[x + 4, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=11).value = ccv.iloc[x + 4, 9] / 1000000
+
+        now = datetime.datetime.now()
+        wb.save(path_dir + '/cycle_result' + str(now.minute) + str(now.second) + '.xlsx')
+        print("분석 종료. 결과파일 저장완료")
+        print("결과파일:" + path_dir + '/cycle_result' + str(now.minute) + str(now.second) + '.xlsx')
+
+    def savefolder_CP2(self):
+        global path_dir_save
+        path_dir_save = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print("결과 저장 폴더 :" + path_dir_save)
+        self.btn_d2.setEnabled(True)
+
+    def folderload_CP2(self):
+        global path_dir
+        path_dir = QFileDialog.getExistingDirectory(self, "Select Directory")
+        print(path_dir)
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        print("데이터 선택 폴더 :")
+        print(dirs1)
+        self.btn_d3.setEnabled(True)
+
+    def CP2_analy(self):
+        for root1, dirs1, files1 in os.walk(path_dir):
+            break
+        dirs1 = sorted(dirs1)
+
+        dirnum = -1
+        wb = openpyxl.load_workbook('./cycle_parameter.xlsx')
+        # sheet_cell2 = wb.get_sheet_by_name('cell2')
+        # sheet_cell3 = wb.get_sheet_by_name('cell3')
+        # sheet_cell4 = wb.get_sheet_by_name('cell4')
+        # sheet_cell5 = wb.get_sheet_by_name('cell5')
+
+        for val_dir1 in dirs1:
+            dirnum = dirnum + 1
+            cell_sheet = wb.get_sheet_by_name('Cell' + str(dirnum + 1))
+            file_list = os.listdir(path_dir + '/' + val_dir1 + '/Restore/')
+            raw = pd.DataFrame()
+            ptn = []
+            for filename in file_list:
+                if filename.find('00') > 0:
+                    dft = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+                    raw = pd.concat([raw, dft], axis=0, ignore_index=True)
+                elif filename.find('SaveEndData') > 0:
+                    ptn = pd.read_csv(path_dir + '/' + val_dir1 + '/Restore/' + filename, header=None)
+
+            # 용량 구하기
+            disch = ptn[ptn[2] == 2]
+            ch = ptn[ptn[2] == 1]
+            res = ptn[ptn[2] == 3]
+            ccv = raw[raw[2] == 3]
+            ccv = ccv[ccv[13] == 6000]
+
+            for f_i in range(100):
+                cell_sheet.cell(row=4, column=2).value = val_dir1
+                cell_sheet.cell(row=10 + f_i, column=2).value = ch.iloc[f_i + 1, 10] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=3).value = raw.iloc[ch.iloc[f_i + 1, 0] - 2, 33] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=4).value = disch.iloc[f_i + 2, 10] / 1000000
+                x = f_i * 2
+                cell_sheet.cell(row=10 + f_i, column=6).value = ccv.iloc[x + 4, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=7).value = ccv.iloc[x + 4, 9] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=10).value = ccv.iloc[x + 5, 8] / 1000000
+                cell_sheet.cell(row=10 + f_i, column=11).value = ccv.iloc[x + 5, 9] / 1000000
+            for f_i in range(200):
+                if res.iloc[f_i + 4, 8] / 1000000 > 4:
+                    cell_sheet.cell(row=10 + (f_i) / 2, column=5).value = res.iloc[f_i + 4, 8] / 1000000
+                else:
+                    cell_sheet.cell(row=10 + (f_i + 1) / 2 - 1, column=9).value = res.iloc[f_i + 4, 8] / 1000000
+
+            if disch.shape[0] > 200:
+                for f_i in range(100):
+                    cell_sheet.cell(row=110 + f_i, column=2).value = ch.iloc[f_i + 102, 10] / 1000000
+                    cell_sheet.cell(row=110 + f_i, column=3).value = raw.iloc[ch.iloc[f_i + 102, 0] - 2, 33] / 1000000
+                    cell_sheet.cell(row=110 + f_i, column=4).value = disch.iloc[f_i + 104, 10] / 1000000
+                    x = f_i * 2
+                    cell_sheet.cell(row=110 + f_i, column=6).value = ccv.iloc[x + 207, 8] / 1000000
+                    cell_sheet.cell(row=110 + f_i, column=7).value = ccv.iloc[x + 207, 9] / 1000000
+                    cell_sheet.cell(row=110 + f_i, column=10).value = ccv.iloc[x + 208, 8] / 1000000
+                    cell_sheet.cell(row=110 + f_i, column=11).value = ccv.iloc[x + 208, 9] / 1000000
+                for f_i in range(200):
+                    if res.iloc[f_i + 206, 8] / 1000000 > 4:
+                        cell_sheet.cell(row=110 + (f_i - 1) / 2, column=5).value = res.iloc[f_i + 206, 8] / 1000000
+                    else:
+                        cell_sheet.cell(row=111 + (f_i) / 2 - 1, column=9).value = res.iloc[f_i + 208, 8] / 1000000
+
+            if disch.shape[0] > 300:
+                for f_i in range(100):
+                    cell_sheet.cell(row=210 + f_i, column=2).value = ch.iloc[f_i + 202, 10] / 1000000
+                    cell_sheet.cell(row=210 + f_i, column=3).value = raw.iloc[ch.iloc[f_i + 202, 0] - 2, 33] / 1000000
+                    cell_sheet.cell(row=210 + f_i, column=4).value = disch.iloc[f_i + 204, 10] / 1000000
+                    x = f_i * 2
+                    cell_sheet.cell(row=210 + f_i, column=6).value = ccv.iloc[x + 407, 8] / 1000000
+                    cell_sheet.cell(row=210 + f_i, column=7).value = ccv.iloc[x + 407, 9] / 1000000
+                    cell_sheet.cell(row=210 + f_i, column=10).value = ccv.iloc[x + 408, 8] / 1000000
+                    cell_sheet.cell(row=210 + f_i, column=11).value = ccv.iloc[x + 408, 9] / 1000000
+                for f_i in range(200):
+                    if res.iloc[f_i + 408, 8] / 1000000 > 4:
+                        cell_sheet.cell(row=210 + (f_i - 1) / 2, column=5).value = res.iloc[f_i + 406, 8] / 1000000
+                    else:
+                        cell_sheet.cell(row=210 + (f_i) / 2 - 1, column=9).value = res.iloc[f_i + 406, 8] / 1000000
+                cell_sheet.cell(row=309, column=5).value = res.iloc[200 + 405, 8] / 1000000
+                cell_sheet.cell(row=309, column=9).value = res.iloc[200 + 406, 8] / 1000000
+
+            # 저항 구하기
+            # step = ptn[ptn[2] == 3]
+            # for i in range(step.shape[0] - 1):
+            #     if raw.iloc[step.iloc[i, 0] + 3, 9] < 0:
+            #         v1 = raw.iloc[step.iloc[i, 0], 8]
+            #         v2 = raw.iloc[step.iloc[i, 0] + 1, 8]
+            #         ic = raw.iloc[step.iloc[i, 0] + 1, 9]
+            #         disch_res = (v2 - v1) / ic
+            #         if i > 1:
+            #             sheet_cycle2.cell(row=32 + int(i / 2) - 1, column=dirnum + 2).value = disch_res * 1000
+        now = datetime.datetime.now()
+        wb.save(path_dir + '/cycle_result' + str(now.minute) + str(now.second) + '.xlsx')
+        print("분석 종료. 결과파일 저장완료")
+        print("결과파일:" + path_dir + '/cycle_result' + str(now.minute) + str(now.second) + '.xlsx')
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = Window()
+    sys.exit(app.exec_())
+
